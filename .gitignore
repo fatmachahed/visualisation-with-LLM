@@ -1,0 +1,8 @@
+# Fichiers générés par Poetry / build
+dist/
+*.egg-info/
+__pycache__/
+*.pyc
+
+# Environnement virtuel
+.venv
