@@ -1,0 +1,30 @@
+#for environment
+dotenv
+
+
+# LangChain core
+langchain>=0.0.350
+
+# Intégration Gemini / Google Generative AI
+langchain-google-genai>=1.0.6
+
+# SDK Python officiel de Google Generative AI (pour Gemini)
+google-genai>=1.0.0
+
+# Outils utiles pour les chaînes LangChain
+python-dotenv>=1.0.0        # charger variables d'environnement (.env)
+pydantic>=2.0.0             # requis par LangChain pour les modèles
+
+# Utilitaires & formats
+requests>=2.0.0             # requêtes HTTP
+aiohttp>=3.8.0              # si tu veux des appels asynchrones
+
+# (Optionnel) pour usage avec embeddings / RAG / vector stores
+faiss-cpu>=1.7.4            # index vectoriel local
+numpy>=1.25.0               # dépendance de faiss & manipulations
+
+# (Optionnel) si tu veux support multimodal (images, etc.)
+Pillow>=10.0.0
+
+# (Optionnel) interface CLI ou notebooks
+ipython>=8.0.0

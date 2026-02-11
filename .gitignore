@@ -6,3 +6,5 @@ __pycache__/
 
 # Environnement virtuel
 .venv
+.env 
+env-data-vis
