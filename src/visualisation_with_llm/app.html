@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLM Data Visualization</title>
+<style>
+    body { font-family: Arial, sans-serif; background: #f7f7f7; margin: 0; padding: 20px; }
+    h1 { color: #2c3e50; }
+    label { display: block; margin: 10px 0 5px; font-weight: bold; }
+    input, textarea, select, button { width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 5px; border: 1px solid #ccc; }
+    button { background-color: #3498db; color: white; border: none; cursor: pointer; }
+    button:hover { background-color: #2980b9; }
+    #charts { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 20px; }
+    .chart-container { background: white; padding: 10px; border-radius: 5px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); flex: 1 1 30%; min-width: 300px; }
+</style>
+</head>
+<body>
+
+<h1>📊 LLM-powered Data Visualization</h1>
+<p>Uploader un CSV et définir une problématique pour générer automatiquement 3 visualisations.</p>
+
+<label for="problem">🧩 Problématique analytique</label>
+<textarea id="problem" placeholder="Ex: Quels facteurs influencent le prix des logements ?"></textarea>
+
+<label for="csvFile">📂 Uploader un fichier CSV</label>
+<input type="file" id="csvFile" accept=".csv">
+
+<button onclick="generateSpecs()">🚀 Générer les 3 visualisations</button>
+
+<div id="charts"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Stocke les specs générées par le "LLM"
+let specs = [];
+let df = [];
+
+// Simule le LLM pour l'instant
+function generateSpecs() {
+    const fileInput = document.getElementById('csvFile');
+    const problem = document.getElementById('problem').value;
+
+    if (!fileInput.files[0] || !problem) {
+        alert("Merci de mettre une problématique et un CSV.");
+        return;
+    }
+
+    Papa.parse(fileInput.files[0], {
+        header: true,
+        dynamicTyping: true,
+        complete: function(results) {
+            df = results.data;
+
+            // Dummy specs (simule le LLM)
+            specs = [
+                { type: "scatter", x: "sepal_length", y: "sepal_width", title: "Sepal Length vs Width", justification: "Répartition par classe" },
+                { type: "bar", x: "class", y: "petal_length", title: "Longueur moyenne des pétales par classe", justification: "Comparer la longueur moyenne des pétales" },
+                { type: "box", x: "class", y: "petal_width", title: "Largeur des pétales par classe", justification: "Distribution de la largeur des pétales" }
+            ];
+
+            renderCharts();
+        }
+    });
+}
+
+// Affiche les 3 propositions et un bouton pour générer le graphique final
+function renderCharts() {
+    const container = document.getElementById('charts');
+    container.innerHTML = "";
+
+    specs.forEach((spec, i) => {
+        const div = document.createElement('div');
+        div.className = "chart-container";
+        div.innerHTML = `
+            <h3>${i+1}. ${spec.title}</h3>
+            <p><strong>Justification :</strong> ${spec.justification}</p>
+            <button onclick="drawChart(${i})">📊 Générer ce graphique</button>
+            <canvas id="chart${i}" style="max-height:300px;"></canvas>
+            <a id="download${i}" style="display:block;margin-top:5px;" download="chart${i}.png">⬇ Télécharger PNG</a>
+        `;
+        container.appendChild(div);
+    });
+}
+
+// Dessine un graphique avec Chart.js
+function drawChart(i) {
+    const spec = specs[i];
+    const ctx = document.getElementById(`chart${i}`).getContext('2d');
+
+    // Préparer les données
+    let labels = df.map(r => r[spec.x]);
+    let values = df.map(r => r[spec.y]);
+
+    if (spec.type === "scatter") {
+        const data = df.map(r => ({ x: r[spec.x], y: r[spec.y] }));
+        new Chart(ctx, { type: 'scatter', data: { datasets: [{ label: spec.title, data, backgroundColor: 'rgba(52,152,219,0.7)' }] } });
+    } else if (spec.type === "bar") {
+        // Moyenne par catégorie
+        const sums = {};
+        const counts = {};
+        df.forEach(r => {
+            const cat = r[spec.x];
+            sums[cat] = (sums[cat] || 0) + r[spec.y];
+            counts[cat] = (counts[cat] || 0) + 1;
+        });
+        const labels = Object.keys(sums);
+        const values = labels.map(l => sums[l] / counts[l]);
+        new Chart(ctx, { type: 'bar', data: { labels, datasets: [{ label: spec.title, data: values, backgroundColor: 'rgba(52,152,219,0.7)' }] } });
+    } else if (spec.type === "box") {
+        // Chart.js n'a pas nativement boxplot, on peut utiliser un histogramme simplifié
+        const labels = Array.from(new Set(df.map(r => r[spec.x])));
+        const values = labels.map(l => df.filter(r => r[spec.x] === l).map(r => r[spec.y]));
+        new Chart(ctx, { type: 'bar', data: { labels, datasets: values.map((v,j) => ({ label: labels[j], data: v, backgroundColor: 'rgba(52,152,219,0.7)' })) } });
+    }
+
+    // Permet le téléchargement du graphique
+    const link = document.getElementById(`download${i}`);
+    link.href = document.getElementById(`chart${i}`).toDataURL("image/png");
+}
+</script>
+
+</body>
+</html>

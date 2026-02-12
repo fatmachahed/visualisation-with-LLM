@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>📊 DataViz AI</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body { 
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        background: #f5f7fa;
+        min-height: 100vh;
+        color: #2d3748;
+    }
+
+    .header {
+        background: white;
+        border-bottom: 1px solid #e2e8f0;
+        padding: 1.5rem 2rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .header-content {
+        max-width: 1400px;
+        margin: 0 auto;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .logo {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #4f46e5;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .stats {
+        display: flex;
+        gap: 2rem;
+        font-size: 0.85rem;
+        color: #64748b;
+    }
+
+    .stat-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .stat-value {
+        font-weight: 600;
+        color: #4f46e5;
+    }
+
+    .container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+
+    .upload-section {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+
+    .section-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+        color: #1e293b;
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+    }
+
+    label {
+        font-size: 0.875rem;
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+        color: #475569;
+    }
+
+    textarea {
+        padding: 0.75rem;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 8px;
+        font-family: inherit;
+        font-size: 0.95rem;
+        resize: vertical;
+        transition: all 0.2s;
+        background: #f8fafc;
+    }
+
+    textarea:focus {
+        outline: none;
+        border-color: #4f46e5;
+        background: white;
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    }
+
+    .file-input-wrapper {
+        position: relative;
+    }
+
+    input[type="file"] {
+        display: none;
+    }
+
+    .file-label {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.75rem;
+        padding: 0.75rem;
+        border: 2px dashed #cbd5e1;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+        background: #f8fafc;
+        font-size: 0.9rem;
+        color: #64748b;
+    }
+
+    .file-label:hover {
+        border-color: #4f46e5;
+        background: #f1f5f9;
+        color: #4f46e5;
+    }
+
+    .file-name {
+        margin-top: 0.5rem;
+        font-size: 0.85rem;
+        color: #4f46e5;
+        font-weight: 500;
+    }
+
+    .options-section {
+        background: #f8fafc;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .options-title {
+        font-size: 0.875rem;
+        font-weight: 600;
+        margin-bottom: 0.75rem;
+        color: #475569;
+    }
+
+    .options-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.75rem;
+    }
+
+    .option-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .checkbox {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+        accent-color: #4f46e5;
+    }
+
+    .option-label {
+        font-size: 0.85rem;
+        color: #64748b;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .color-picker {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+    }
+
+    .color-swatch {
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        cursor: pointer;
+        border: 2px solid #e2e8f0;
+        transition: all 0.2s;
+    }
+
+    .color-swatch:hover {
+        transform: scale(1.1);
+        border-color: #4f46e5;
+    }
+
+    .color-swatch.active {
+        border-color: #4f46e5;
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    }
+
+    .btn-generate {
+        width: 100%;
+        padding: 1rem;
+        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        box-shadow: 0 4px 6px rgba(79, 70, 229, 0.2);
+    }
+
+    .btn-generate:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(79, 70, 229, 0.3);
+    }
+
+    .btn-generate:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    #loading {
+        display: none;
+        text-align: center;
+        padding: 2rem;
+        background: white;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+    }
+
+    .spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid #e2e8f0;
+        border-top: 4px solid #4f46e5;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin: 0 auto 1rem;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .charts-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1.5rem;
+        margin-left: -10rem;
+    }
+
+    .chart-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        transition: all 0.3s;
+    }
+
+    .chart-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+        transform: translateY(-4px);
+    }
+
+    .chart-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 1rem;
+    }
+
+    .chart-number {
+        width: 28px;
+        height: 28px;
+        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+        color: white;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    .chart-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .icon-btn {
+        width: 32px;
+        height: 32px;
+        border: none;
+        background: #f1f5f9;
+        border-radius: 6px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+        color: #64748b;
+    }
+
+    .icon-btn:hover {
+        background: #e2e8f0;
+        color: #4f46e5;
+    }
+
+    .chart-title {
+        font-size: 1rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: #1e293b;
+    }
+
+    .chart-description {
+        font-size: 0.85rem;
+        color: #64748b;
+        line-height: 1.5;
+        margin-bottom: 1rem;
+        padding: 0.75rem;
+        background: #f8fafc;
+        border-radius: 6px;
+        border-left: 3px solid #4f46e5;
+    }
+
+    .chart-canvas {
+        margin: 1rem 0;
+        min-height: 250px;
+    }
+
+    .chart-footer {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 1rem;
+    }
+
+    .btn-chart {
+        flex: 1;
+        padding: 0.5rem;
+        border: 1.5px solid #e2e8f0;
+        background: white;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        color: #475569;
+    }
+
+    .btn-chart:hover {
+        border-color: #4f46e5;
+        color: #4f46e5;
+        background: #f8fafc;
+    }
+
+    .btn-chart.primary {
+        background: #4f46e5;
+        color: white;
+        border-color: #4f46e5;
+    }
+
+    .btn-chart.primary:hover {
+        background: #4338ca;
+    }
+
+    .alert {
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        display: none;
+        font-size: 0.9rem;
+    }
+
+    .alert.show {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .alert-success {
+        background: #d1fae5;
+        color: #065f46;
+        border: 1px solid #6ee7b7;
+    }
+
+    .alert-error {
+        background: #fee2e2;
+        color: #991b1b;
+        border: 1px solid #fca5a5;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        color: #94a3b8;
+        margin-left: 2rem;
+    }
+
+    .empty-state svg {
+        width: 120px;
+        height: 120px;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+
+    @media (max-width: 1200px) {
+        .charts-grid {
+            grid-template-columns: repeat(2, 1fr);
+            margin-left: 0;
+        }
+
+        .empty-state {
+            margin-left: 0;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .form-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .charts-grid {
+            grid-template-columns: 1fr;
+            margin-left: 0;
+        }
+
+        .options-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .stats {
+            display: none;
+        }
+
+        .empty-state {
+            margin-left: 0;
+        }
+    }
+</style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-content">
+        <div class="logo">
+            📊 DataViz AI
+        </div>
+        <div class="stats">
+            <div class="stat-item">
+                <span>Graphiques générés:</span>
+                <span class="stat-value" id="chartCount">0</span>
+            </div>
+            <div class="stat-item">
+                <span>Lignes analysées:</span>
+                <span class="stat-value" id="rowCount">0</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <div class="upload-section">
+        <h2 class="section-title">Nouvelle analyse</h2>
+        
+        <div id="alert" class="alert"></div>
+
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="problem">Problématique de recherche</label>
+                <textarea 
+                    id="problem" 
+                    placeholder="Ex: Analyser les facteurs influençant les prix, comparer les performances par région..."
+                    rows="4"
+                ></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Fichier de données (CSV)</label>
+                <div class="file-input-wrapper">
+                    <input type="file" id="csvFile" accept=".csv" onchange="updateFileName()">
+                    <label for="csvFile" class="file-label">
+                        <span>📁</span>
+                        <span>Sélectionner un fichier CSV</span>
+                    </label>
+                    <div id="fileName" class="file-name"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="options-section">
+            <div class="options-title">Options de visualisation</div>
+            <div class="options-grid">
+                <div class="option-item">
+                    <input type="checkbox" id="autoGenerate" class="checkbox" checked>
+                    <label for="autoGenerate" class="option-label">Génération automatique</label>
+                </div>
+                <div class="option-item">
+                    <input type="checkbox" id="showLegend" class="checkbox" checked>
+                    <label for="showLegend" class="option-label">Afficher la légende</label>
+                </div>
+                <div class="option-item">
+                    <input type="checkbox" id="showGrid" class="checkbox" checked>
+                    <label for="showGrid" class="option-label">Grille des axes</label>
+                </div>
+                <div class="option-item">
+                    <input type="checkbox" id="smoothLines" class="checkbox" checked>
+                    <label for="smoothLines" class="option-label">Courbes lissées</label>
+                </div>
+                <div class="option-item">
+                    <input type="checkbox" id="animations" class="checkbox" checked>
+                    <label for="animations" class="option-label">Animations</label>
+                </div>
+                <div class="option-item">
+                    <input type="checkbox" id="responsiveText" class="checkbox" checked>
+                    <label for="responsiveText" class="option-label">Texte adaptatif</label>
+                </div>
+            </div>
+        </div>
+
+        <div class="options-section">
+            <div class="options-title">Palette de couleurs</div>
+            <div class="color-picker">
+                <div class="color-swatch active" style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);" onclick="selectColor('purple')" data-color="purple"></div>
+                <div class="color-swatch" style="background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);" onclick="selectColor('blue')" data-color="blue"></div>
+                <div class="color-swatch" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);" onclick="selectColor('green')" data-color="green"></div>
+                <div class="color-swatch" style="background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);" onclick="selectColor('orange')" data-color="orange"></div>
+                <div class="color-swatch" style="background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%);" onclick="selectColor('pink')" data-color="pink"></div>
+            </div>
+        </div>
+
+        <button class="btn-generate" onclick="generateSpecs()" id="generateBtn">
+            🚀 Générer les visualisations
+        </button>
+
+        <div id="loading">
+            <div class="spinner"></div>
+            <p>Analyse des données en cours...</p>
+        </div>
+    </div>
+
+    <div id="charts" class="charts-grid"></div>
+
+    <div id="emptyState" class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z"/>
+        </svg>
+        <h3>Aucune visualisation</h3>
+        <p>Uploadez vos données et cliquez sur "Générer" pour commencer</p>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+let df = [];
+let specs = [];
+let chartInstances = [];
+let selectedColor = 'purple';
+
+const colorSchemes = {
+    purple: {
+        primary: 'rgba(79, 70, 229, 0.8)',
+        secondary: 'rgba(124, 58, 237, 0.8)',
+        light: 'rgba(79, 70, 229, 0.1)'
+    },
+    blue: {
+        primary: 'rgba(59, 130, 246, 0.8)',
+        secondary: 'rgba(6, 182, 212, 0.8)',
+        light: 'rgba(59, 130, 246, 0.1)'
+    },
+    green: {
+        primary: 'rgba(16, 185, 129, 0.8)',
+        secondary: 'rgba(5, 150, 105, 0.8)',
+        light: 'rgba(16, 185, 129, 0.1)'
+    },
+    orange: {
+        primary: 'rgba(245, 158, 11, 0.8)',
+        secondary: 'rgba(239, 68, 68, 0.8)',
+        light: 'rgba(245, 158, 11, 0.1)'
+    },
+    pink: {
+        primary: 'rgba(236, 72, 153, 0.8)',
+        secondary: 'rgba(139, 92, 246, 0.8)',
+        light: 'rgba(236, 72, 153, 0.1)'
+    }
+};
+
+function selectColor(color) {
+    selectedColor = color;
+    document.querySelectorAll('.color-swatch').forEach(el => {
+        el.classList.remove('active');
+    });
+    event.target.classList.add('active');
+}
+
+function updateFileName() {
+    const fileInput = document.getElementById('csvFile');
+    const fileNameDiv = document.getElementById('fileName');
+    if (fileInput.files[0]) {
+        fileNameDiv.textContent = `✓ ${fileInput.files[0].name}`;
+    }
+}
+
+function showAlert(message, type = 'error') {
+    const alertDiv = document.getElementById('alert');
+    alertDiv.innerHTML = `
+        <span>${type === 'success' ? '✓' : '⚠'}</span>
+        <span>${message}</span>
+    `;
+    alertDiv.className = `alert alert-${type} show`;
+    setTimeout(() => alertDiv.classList.remove('show'), 5000);
+}
+
+async function generateSpecs() {
+    const fileInput = document.getElementById('csvFile');
+    const problem = document.getElementById('problem').value.trim();
+
+    if (!problem) {
+        showAlert("Veuillez saisir une problématique de recherche");
+        return;
+    }
+
+    if (!fileInput.files[0]) {
+        showAlert("Veuillez sélectionner un fichier CSV");
+        return;
+    }
+
+    document.getElementById('emptyState').style.display = 'none';
+    document.getElementById('loading').style.display = 'block';
+    document.getElementById('charts').innerHTML = '';
+    document.getElementById('generateBtn').disabled = true;
+
+    const formData = new FormData();
+    formData.append('problem', problem);
+    formData.append('dataset', fileInput.files[0]);
+
+    try {
+        const response = await fetch('http://127.0.0.1:5000/generate', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.error || "Erreur serveur");
+        }
+
+        const result = await response.json();
+        if (result.error) throw new Error(result.error);
+
+        specs = result;
+
+        Papa.parse(fileInput.files[0], {
+            header: true,
+            dynamicTyping: true,
+            complete: function(results) {
+                df = results.data.filter(row => 
+                    Object.values(row).some(val => val !== null && val !== '' && val !== undefined)
+                );
+                
+                document.getElementById('rowCount').textContent = df.length;
+                renderCharts();
+                
+                // Auto-generate si l'option est activée
+                if (document.getElementById('autoGenerate').checked) {
+                    setTimeout(() => {
+                        specs.forEach((_, i) => drawChart(i));
+                    }, 500);
+                }
+                
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('generateBtn').disabled = false;
+                showAlert('Visualisations générées avec succès', 'success');
+                document.getElementById('chartCount').textContent = specs.length;
+            }
+        });
+
+    } catch (err) {
+        showAlert(err.message);
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('generateBtn').disabled = false;
+        document.getElementById('emptyState').style.display = 'block';
+    }
+}
+
+function renderCharts() {
+    const container = document.getElementById('charts');
+    container.innerHTML = '';
+
+    specs.forEach((spec, i) => {
+        const div = document.createElement('div');
+        div.className = 'chart-card';
+        div.innerHTML = `
+            <div class="chart-header">
+                <div class="chart-number">${i + 1}</div>
+                <div class="chart-actions">
+                    <button class="icon-btn" onclick="downloadChart(${i})" title="Télécharger">
+                        ⬇
+                    </button>
+                    <button class="icon-btn" onclick="refreshChart(${i})" title="Actualiser">
+                        🔄
+                    </button>
+                </div>
+            </div>
+            <h3 class="chart-title">${spec.title}</h3>
+            <p class="chart-description">${spec.justification}</p>
+            <canvas id="chart${i}" class="chart-canvas"></canvas>
+            <div class="chart-footer">
+                <button class="btn-chart primary" onclick="drawChart(${i})">Afficher</button>
+                <button class="btn-chart" onclick="exportData(${i})">Exporter CSV</button>
+            </div>
+        `;
+        container.appendChild(div);
+    });
+}
+
+function drawChart(i) {
+    const spec = specs[i];
+    const canvas = document.getElementById(`chart${i}`);
+    
+    if (!canvas) {
+        console.error('Canvas introuvable pour le graphique', i);
+        return;
+    }
+    
+    const ctx = canvas.getContext('2d');
+
+    if (chartInstances[i]) {
+        chartInstances[i].destroy();
+    }
+
+    if (!df || df.length === 0) {
+        showAlert("Aucune donnée disponible");
+        return;
+    }
+
+    const showLegend = document.getElementById('showLegend').checked;
+    const showGrid = document.getElementById('showGrid').checked;
+    const smoothLines = document.getElementById('smoothLines').checked;
+    const animations = document.getElementById('animations').checked;
+
+    const colors = colorSchemes[selectedColor];
+
+    let chartConfig = null;
+
+    try {
+        if (spec.type === "scatter") {
+            const data = df
+                .map(r => ({ x: r[spec.x], y: r[spec.y] }))
+                .filter(d => d.x != null && d.y != null && !isNaN(d.x) && !isNaN(d.y));
+            
+            chartConfig = {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: spec.title,
+                        data: data,
+                        backgroundColor: colors.primary,
+                        borderColor: colors.primary,
+                        pointRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    animation: { duration: animations ? 1000 : 0 },
+                    plugins: {
+                        legend: { display: showLegend }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: spec.x },
+                            grid: { display: showGrid }
+                        },
+                        y: {
+                            title: { display: true, text: spec.y },
+                            grid: { display: showGrid }
+                        }
+                    }
+                }
+            };
+        } 
+        else if (spec.type === "bar") {
+            const groups = {};
+            const counts = {};
+            
+            df.forEach(r => {
+                const cat = String(r[spec.x] || '');
+                const val = parseFloat(r[spec.y]);
+                
+                if (cat && !isNaN(val)) {
+                    groups[cat] = (groups[cat] || 0) + val;
+                    counts[cat] = (counts[cat] || 0) + 1;
+                }
+            });
+            
+            const labels = Object.keys(groups);
+            const values = labels.map(l => groups[l] / counts[l]);
+            
+            chartConfig = {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: spec.y,
+                        data: values,
+                        backgroundColor: colors.primary,
+                        borderColor: colors.secondary,
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    animation: { duration: animations ? 1000 : 0 },
+                    plugins: {
+                        legend: { display: showLegend }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: spec.x },
+                            grid: { display: showGrid }
+                        },
+                        y: {
+                            title: { display: true, text: spec.y },
+                            beginAtZero: true,
+                            grid: { display: showGrid }
+                        }
+                    }
+                }
+            };
+        }
+        else if (spec.type === "line") {
+            const labels = df.map(r => String(r[spec.x] || ''));
+            const values = df.map(r => parseFloat(r[spec.y])).filter(v => !isNaN(v));
+            
+            chartConfig = {
+                type: 'line',
+                data: {
+                    labels: labels.slice(0, values.length),
+                    datasets: [{
+                        label: spec.y,
+                        data: values,
+                        borderColor: colors.primary,
+                        backgroundColor: colors.light,
+                        tension: smoothLines ? 0.4 : 0,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    animation: { duration: animations ? 1000 : 0 },
+                    plugins: {
+                        legend: { display: showLegend }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: spec.x },
+                            grid: { display: showGrid }
+                        },
+                        y: {
+                            title: { display: true, text: spec.y },
+                            grid: { display: showGrid }
+                        }
+                    }
+                }
+            };
+        }
+        else if (spec.type === "boxplot" || spec.type === "histogram") {
+            const groups = {};
+            
+            df.forEach(r => {
+                const cat = String(r[spec.x] || 'Valeur');
+                const val = parseFloat(r[spec.y]);
+                
+                if (!isNaN(val)) {
+                    if (!groups[cat]) groups[cat] = [];
+                    groups[cat].push(val);
+                }
+            });
+            
+            const labels = Object.keys(groups);
+            const values = labels.map(l => {
+                const arr = groups[l];
+                return arr.reduce((a, b) => a + b, 0) / arr.length;
+            });
+            
+            chartConfig = {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Moyenne de ' + spec.y,
+                        data: values,
+                        backgroundColor: colors.primary,
+                        borderColor: colors.secondary,
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    animation: { duration: animations ? 1000 : 0 },
+                    plugins: {
+                        legend: { display: showLegend }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: spec.x },
+                            grid: { display: showGrid }
+                        },
+                        y: {
+                            title: { display: true, text: spec.y },
+                            beginAtZero: true,
+                            grid: { display: showGrid }
+                        }
+                    }
+                }
+            };
+        }
+
+        if (chartConfig) {
+            chartInstances[i] = new Chart(ctx, chartConfig);
+        }
+    } catch (error) {
+        console.error('Erreur lors de la création du graphique:', error);
+        showAlert(`Erreur graphique ${i + 1}: ${error.message}`);
+    }
+}
+
+function downloadChart(i) {
+    const canvas = document.getElementById(`chart${i}`);
+    if (!canvas) return;
+    
+    const link = document.createElement('a');
+    link.download = `chart_${i + 1}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+}
+
+function refreshChart(i) {
+    drawChart(i);
+}
+
+function exportData(i) {
+    const spec = specs[i];
+    const csvData = df.map(row => ({
+        [spec.x]: row[spec.x],
+        [spec.y]: row[spec.y]
+    }));
+    
+    const csv = Papa.unparse(csvData);
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const link = document.createElement('a');
+    link.download = `data_chart_${i + 1}.csv`;
+    link.href = URL.createObjectURL(blob);
+    link.click();
+}
+</script>
+
+</body>
+</html>

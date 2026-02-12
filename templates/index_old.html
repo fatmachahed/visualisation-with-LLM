@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>LLM Data Visualization</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>📊 LLM-powered Data Visualization</h1>
+        <p>Uploader un CSV et décris ta problématique pour générer automatiquement des visualisations.</p>
+        
+        <form id="form">
+            <textarea name="problem" placeholder="Ex: Quels facteurs influencent le prix des logements ?"></textarea>
+            <input type="file" name="dataset" accept=".csv">
+            <button type="submit">🚀 Générer visualisations</button>
+        </form>
+
+        <!-- Indicateur de chargement -->
+        <div id="loading" class="hidden">
+            <div class="spinner"></div>
+            <span>Analyse en cours...</span>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const form = document.getElementById("form");
+        const loading = document.getElementById("loading");
+        const results = document.getElementById("results");
+
+        form.addEventListener("submit", async e => {
+            e.preventDefault();
+
+            // Afficher le spinner
+            loading.classList.remove("hidden");
+            results.innerHTML = "";
+
+            const data = new FormData(form);
+
+            try {
+                const response = await fetch("/generate", { method: "POST", body: data });
+                const result = await response.json();
+
+                // Masquer le spinner
+                loading.classList.add("hidden");
+
+                // Afficher les résultats joliment
+                results.innerHTML = "";
+                result.forEach((spec, index) => {
+                    const card = document.createElement("div");
+                    card.className = "card";
+                    card.innerHTML = `
+                        <h3>${index + 1}. ${spec.title || "Sans titre"}</h3>
+                        <p><strong>Type:</strong> ${spec.type}</p>
+                        <p><strong>X:</strong> ${spec.x || "-"}</p>
+                        <p><strong>Y:</strong> ${spec.y || "-"}</p>
+                        <p><strong>Justification:</strong> ${spec.justification || "-"}</p>
+                    `;
+                    results.appendChild(card);
+                });
+
+            } catch (err) {
+                loading.classList.add("hidden");
+                results.innerHTML = `<p class="error">Erreur : ${err.message}</p>`;
+            }
+        });
+    </script>
+</body>
+</html>
