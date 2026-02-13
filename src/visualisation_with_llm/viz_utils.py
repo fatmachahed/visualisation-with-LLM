@@ -1,67 +1,155 @@
-# src/visualisation_with_llm/viz_utils.py
-
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
+from io import BytesIO
+import base64
 
-
-# ==========================================================
-# THEME & GLOBAL CONFIG
-# ==========================================================
+# =========================================================
+# THEME
+# =========================================================
 
 def apply_theme():
-    """
-    Applique un thème propre et académique.
-    """
     sns.set_theme(style="whitegrid")
     plt.rcParams["figure.dpi"] = 100
+    plt.rcParams["axes.titlesize"] = 14
+    plt.rcParams["axes.labelsize"] = 12
 
 
-# ==========================================================
-# VALIDATION UTILITIES
-# ==========================================================
+# =========================================================
+# DATA PREPROCESSING
+# =========================================================
 
-def validate_columns(df: pd.DataFrame, columns: list):
-    """
-    Vérifie que les colonnes existent dans le DataFrame.
-    """
-    for col in columns:
-        if col and col not in df.columns:
-            raise ValueError(f"Column '{col}' not found in dataset.")
+def preprocess_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+
+    # Drop fully empty rows/columns
+    df = df.dropna(axis=1, how="all")
+    df = df.dropna(axis=0, how="all")
+
+    # Clean strings
+    for col in df.select_dtypes(include="object").columns:
+        df[col] = df[col].astype(str).str.strip()
+        df[col] = df[col].replace(["", "nan", "None", "NULL"], pd.NA)
+
+    # Smart numeric conversion
+    for col in df.columns:
+        df[col] = pd.to_numeric(df[col], errors="ignore")
+
+    return df
 
 
-def get_numeric_columns(df: pd.DataFrame):
-    return df.select_dtypes(include="number").columns.tolist()
+# =========================================================
+# VALIDATION
+# =========================================================
+
+def column_is_valid(df: pd.DataFrame, col: str) -> bool:
+    if not col or col not in df.columns:
+        return False
+
+    series = df[col].dropna()
+
+    if series.empty:
+        return False
+
+    if series.nunique() == 0:
+        return False
+
+    return True
 
 
-def get_categorical_columns(df: pd.DataFrame):
-    return df.select_dtypes(exclude="number").columns.tolist()
+def is_numeric(df, col):
+    return col in df.select_dtypes(include="number").columns
 
 
-# ==========================================================
-# PLOT FUNCTIONS
-# ==========================================================
+def is_categorical(df, col):
+    return col in df.select_dtypes(exclude="number").columns
 
-def plot_bar(df, x, y, title="", palette="deep"):
-    validate_columns(df, [x, y])
+
+# =========================================================
+# AUTO CORRECTION (ANTI-LLM ERRORS)
+# =========================================================
+
+def auto_correct_spec(df, spec):
+
+    plot_type = spec.get("type", "").lower().strip()
+    x = spec.get("x")
+    y = spec.get("y")
+
+    # Histogram sur colonne catégorielle → count
+    if plot_type == "histogram" and is_categorical(df, x):
+        spec["type"] = "count"
+
+    # Scatter → x et y doivent être numériques
+    if plot_type == "scatter":
+        if not (is_numeric(df, x) and is_numeric(df, y)):
+            spec["type"] = "invalid"
+
+    # Boxplot → y doit être numérique
+    if plot_type == "boxplot":
+        if not is_numeric(df, y):
+            spec["type"] = "invalid"
+
+    # Bar avec y → y doit être numérique
+    if plot_type == "bar" and y:
+        if not is_numeric(df, y):
+            spec["type"] = "invalid"
+
+    return spec
+
+
+# =========================================================
+# SAFE PLOT FUNCTIONS
+# =========================================================
+
+def plot_bar(df, x, y=None, title="", palette="deep"):
     fig, ax = plt.subplots(figsize=(8, 5))
-    sns.barplot(data=df, x=x, y=y, palette=palette, ax=ax)
+
+    if y:
+        data = df.dropna(subset=[x, y])
+        if data.empty:
+            return empty_plot("Aucune donnée valide")
+        sns.barplot(data=data, x=x, y=y, palette=palette, ax=ax)
+    else:
+        value_counts = df[x].dropna().value_counts()
+        if value_counts.empty:
+            return empty_plot("Aucune donnée valide")
+
+        sns.barplot(
+            x=value_counts.index,
+            y=value_counts.values,
+            palette=palette,
+            ax=ax
+        )
+        ax.set_ylabel("Count")
+
+    ax.set_title(title)
+    fig.tight_layout()
+    return fig
+
+
+def plot_count(df, x, title="", palette="deep"):
+    data = df.dropna(subset=[x])
+    if data.empty:
+        return empty_plot("Aucune donnée valide")
+
+    fig, ax = plt.subplots(figsize=(8, 5))
+    sns.countplot(data=data, x=x, palette=palette, ax=ax)
     ax.set_title(title)
     fig.tight_layout()
     return fig
 
 
 def plot_scatter(df, x, y, hue=None, title="", palette="deep"):
-    validate_columns(df, [x, y])
-    if hue:
-        validate_columns(df, [hue])
+    data = df.dropna(subset=[x, y])
+    if data.empty:
+        return empty_plot("Aucune donnée valide")
 
     fig, ax = plt.subplots(figsize=(8, 5))
     sns.scatterplot(
-        data=df,
+        data=data,
         x=x,
         y=y,
-        hue=hue,
+        hue=hue if hue and column_is_valid(df, hue) else None,
         palette=palette if hue else None,
         ax=ax
     )
@@ -70,28 +158,37 @@ def plot_scatter(df, x, y, hue=None, title="", palette="deep"):
     return fig
 
 
-def plot_line(df, x, y, title="", palette="deep"):
-    validate_columns(df, [x, y])
+def plot_line(df, x, y, title=""):
+    data = df.dropna(subset=[x, y])
+    if data.empty:
+        return empty_plot("Aucune donnée valide")
+
     fig, ax = plt.subplots(figsize=(8, 5))
-    sns.lineplot(data=df, x=x, y=y, ax=ax)
+    sns.lineplot(data=data, x=x, y=y, ax=ax)
     ax.set_title(title)
     fig.tight_layout()
     return fig
 
 
 def plot_boxplot(df, x, y, title="", palette="deep"):
-    validate_columns(df, [x, y])
+    data = df.dropna(subset=[x, y])
+    if data.empty:
+        return empty_plot("Aucune donnée valide")
+
     fig, ax = plt.subplots(figsize=(8, 5))
-    sns.boxplot(data=df, x=x, y=y, palette=palette, ax=ax)
+    sns.boxplot(data=data, x=x, y=y, palette=palette, ax=ax)
     ax.set_title(title)
     fig.tight_layout()
     return fig
 
 
-def plot_histogram(df, column, title="", palette="deep"):
-    validate_columns(df, [column])
+def plot_histogram(df, column, title="", bins=20):
+    data = df[column].dropna()
+    if data.empty:
+        return empty_plot("Aucune donnée valide")
+
     fig, ax = plt.subplots(figsize=(8, 5))
-    sns.histplot(df[column], kde=True, ax=ax)
+    sns.histplot(data, kde=True, bins=bins, ax=ax)
     ax.set_title(title)
     fig.tight_layout()
     return fig
@@ -101,77 +198,99 @@ def plot_heatmap(df, title="Correlation Heatmap", cmap="coolwarm"):
     numeric_df = df.select_dtypes(include="number")
 
     if numeric_df.shape[1] < 2:
-        raise ValueError("Heatmap requires at least two numeric columns.")
+        return empty_plot("Pas assez de colonnes numériques")
+
+    corr_matrix = numeric_df.corr()
 
     fig, ax = plt.subplots(figsize=(8, 6))
-    sns.heatmap(
-        numeric_df.corr(),
-        annot=True,
-        cmap=cmap,
-        ax=ax
-    )
+    sns.heatmap(corr_matrix, annot=True, cmap=cmap, ax=ax)
     ax.set_title(title)
     fig.tight_layout()
     return fig
 
 
-# ==========================================================
-# EXPORT FUNCTION
-# ==========================================================
+def plot_pairplot(df, hue=None):
+    numeric_cols = df.select_dtypes(include="number").columns
 
-def save_figure(fig, filename: str):
-    """
-    Sauvegarde une figure au format PNG.
-    """
-    fig.savefig(filename, dpi=300)
-    return filename
+    if len(numeric_cols) < 2:
+        return empty_plot("Pairplot nécessite 2 colonnes numériques")
+
+    df_clean = df[numeric_cols].dropna().copy()
+
+    if hue and hue in df.columns:
+        df_clean[hue] = df[hue]
+
+    g = sns.pairplot(df_clean, hue=hue if hue else None)
+    return g.fig
 
 
-# ==========================================================
-# DISPATCHER (LLM SPEC -> GRAPH)
-# ==========================================================
+def empty_plot(message):
+    fig, ax = plt.subplots(figsize=(8, 5))
+    ax.text(0.5, 0.5, message, ha="center", va="center")
+    ax.axis("off")
+    return fig
 
-def generate_plot(df: pd.DataFrame, spec: dict):
-    """
-    Génère un graphique à partir d'une spécification fournie par le LLM.
 
-    spec attendu :
-    {
-        "type": "scatter",
-        "x": "surface",
-        "y": "price",
-        "hue": "district",
-        "title": "Surface vs Price",
-        "palette": "colorblind"
-    }
-    """
+# =========================================================
+# EXPORT
+# =========================================================
+
+def fig_to_base64(fig):
+    buf = BytesIO()
+    fig.savefig(buf, format="png", dpi=150)
+    buf.seek(0)
+    img_base64 = base64.b64encode(buf.read()).decode("utf-8")
+    buf.close()
+    plt.close(fig)
+    return f"data:image/png;base64,{img_base64}"
+
+
+# =========================================================
+# MAIN DISPATCHER (FINAL SAFE VERSION)
+# =========================================================
+
+def generate_plot_base64(df: pd.DataFrame, spec: dict):
 
     apply_theme()
 
-    plot_type = spec.get("type")
+    df = preprocess_dataframe(df)
+    spec = auto_correct_spec(df, spec)
+
+    plot_type = spec.get("type", "").lower().strip()
     x = spec.get("x")
     y = spec.get("y")
     hue = spec.get("hue")
     title = spec.get("title", "")
-    palette = spec.get("palette", "deep")
 
-    if plot_type == "bar":
-        return plot_bar(df, x, y, title, palette)
+    # Validate columns
+    for col in [x, y, hue]:
+        if col and not column_is_valid(df, col):
+            return fig_to_base64(empty_plot(f"Colonne '{col}' invalide"))
 
-    elif plot_type == "scatter":
-        return plot_scatter(df, x, y, hue, title, palette)
+    if plot_type == "invalid":
+        return fig_to_base64(empty_plot("Spécification invalide"))
 
-    elif plot_type == "line":
-        return plot_line(df, x, y, title, palette)
+    try:
+        if plot_type == "bar":
+            fig = plot_bar(df, x, y, title)
+        elif plot_type == "count":
+            fig = plot_count(df, x, title)
+        elif plot_type == "scatter":
+            fig = plot_scatter(df, x, y, hue, title)
+        elif plot_type == "line":
+            fig = plot_line(df, x, y, title)
+        elif plot_type == "boxplot":
+            fig = plot_boxplot(df, x, y, title)
+        elif plot_type == "histogram":
+            fig = plot_histogram(df, x, title)
+        elif plot_type == "heatmap":
+            fig = plot_heatmap(df, title)
+        elif plot_type == "pairplot":
+            fig = plot_pairplot(df, hue)
+        else:
+            return fig_to_base64(empty_plot("Type de plot inconnu"))
 
-    elif plot_type == "boxplot":
-        return plot_boxplot(df, x, y, title, palette)
+        return fig_to_base64(fig)
 
-    elif plot_type == "histogram":
-        return plot_histogram(df, x, title, palette)
-
-    elif plot_type == "heatmap":
-        return plot_heatmap(df, title)
-
-    else:
-        raise ValueError(f"Unsupported plot type: {plot_type}")
+    except Exception as e:
+        return fig_to_base64(empty_plot(f"Erreur: {e}"))

@@ -113,7 +113,77 @@ function drawChart(i) {
         const labels = Array.from(new Set(df.map(r => r[spec.x])));
         const values = labels.map(l => df.filter(r => r[spec.x] === l).map(r => r[spec.y]));
         new Chart(ctx, { type: 'bar', data: { labels, datasets: values.map((v,j) => ({ label: labels[j], data: v, backgroundColor: 'rgba(52,152,219,0.7)' })) } });
+        
+    } else if (spec.type === "heatmap") {
+
+    // Extraire colonnes numériques
+    const numericColumns = Object.keys(df[0]).filter(col => 
+        !isNaN(parseFloat(df[0][col]))
+    );
+
+    if (numericColumns.length < 2) {
+        showAlert("Pas assez de colonnes numériques pour une heatmap");
+        return;
     }
+
+    // Calcul matrice de corrélation
+    const correlationMatrix = numericColumns.map(col1 => {
+        return numericColumns.map(col2 => {
+            const values1 = df.map(r => parseFloat(r[col1])).filter(v => !isNaN(v));
+            const values2 = df.map(r => parseFloat(r[col2])).filter(v => !isNaN(v));
+
+            const mean1 = values1.reduce((a,b)=>a+b,0)/values1.length;
+            const mean2 = values2.reduce((a,b)=>a+b,0)/values2.length;
+
+            let num = 0;
+            let den1 = 0;
+            let den2 = 0;
+
+            for (let k = 0; k < values1.length; k++) {
+                num += (values1[k]-mean1)*(values2[k]-mean2);
+                den1 += Math.pow(values1[k]-mean1,2);
+                den2 += Math.pow(values2[k]-mean2,2);
+            }
+
+            return num / Math.sqrt(den1 * den2);
+        });
+    });
+
+    chartConfig = {
+        type: 'matrix',
+        data: {
+            datasets: [{
+                label: 'Correlation Matrix',
+                data: correlationMatrix.flatMap((row, i) =>
+                    row.map((value, j) => ({
+                        x: numericColumns[j],
+                        y: numericColumns[i],
+                        v: value
+                    }))
+                ),
+                backgroundColor(context) {
+                    const value = context.dataset.data[context.dataIndex].v;
+                    const alpha = Math.abs(value);
+                    return value > 0
+                        ? `rgba(79, 70, 229, ${alpha})`
+                        : `rgba(239, 68, 68, ${alpha})`;
+                },
+                width: ({chart}) => (chart.chartArea || {}).width / numericColumns.length - 1,
+                height: ({chart}) => (chart.chartArea || {}).height / numericColumns.length - 1
+            }]
+        },
+        options: {
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                x: { type: 'category', labels: numericColumns },
+                y: { type: 'category', labels: numericColumns }
+            }
+        }
+    };
+}
+
 
     // Permet le téléchargement du graphique
     const link = document.getElementById(`download${i}`);

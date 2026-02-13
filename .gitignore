@@ -1,8 +1,13 @@
-# Fichiers générés par Poetry / build
-dist/
-*.egg-info/
+# Environnement virtuel
+.venv/
+
+# Fichiers Python compilés
 __pycache__/
 *.pyc
 
-# Environnement virtuel
-.venv
+# Build / distribution
+dist/
+*.egg-info/
+
+# Configurations locales (optionnel)
+*.env
