@@ -1,53 +1,37 @@
+#data_loader.py
 import pandas as pd
 from pathlib import Path
 
-def load_dataset(file_path: str) -> pd.DataFrame:
-    """
-    Charge un dataset CSV et retourne un DataFrame pandas.
-    
-    Paramètres
-    ----------
-    file_path : str
-        Chemin vers le fichier CSV.
+# data_loader.py
+import pandas as pd
 
-    Retour
-    ------
-    pd.DataFrame
-        DataFrame contenant le dataset chargé.
+def load_dataset(file) -> pd.DataFrame:
+    """
+    Charge un dataset CSV depuis un fichier uploadé ou un chemin.
     """
     try:
-        # Charger le CSV
-        df = pd.read_csv(file_path)
+        df = pd.read_csv(file)
 
-        # Vérifier qu'il n'est pas vide
         if df.empty:
-            print(f"Attention : le dataset {file_path} est vide.")
             return df
 
-        # Nettoyage de base 
-        cols_to_drop = [col for col in df.columns if 'unnamed' in col.lower()]
-        if cols_to_drop:
-            df.drop(columns=cols_to_drop, inplace=True)
-        
-        # Nettoyage de type : convertir les colonnes numériques
-        for col in df.select_dtypes(include=['object']).columns:
+        # Drop colonnes inutiles
+        cols_to_drop = [c for c in df.columns if 'unnamed' in c.lower()]
+        df.drop(columns=cols_to_drop, inplace=True, errors="ignore")
+
+        # Tentative conversion numérique
+        for col in df.select_dtypes(include=["object"]).columns:
             try:
                 df[col] = pd.to_numeric(df[col])
             except:
-                pass  # si conversion impossible, on garde le texte
+                pass
 
-        print(f"Dataset chargé avec succès : {df.shape[0]} lignes, {df.shape[1]} colonnes")
         return df
 
-    except FileNotFoundError:
-        print(f"Erreur : le fichier {file_path} n'existe pas.")
-        return pd.DataFrame()
-    except pd.errors.ParserError:
-        print(f"Erreur : problème lors de la lecture du CSV {file_path}.")
-        return pd.DataFrame()
     except Exception as e:
-        print(f"Erreur inattendue : {e}")
+        print(f"Erreur chargement dataset : {e}")
         return pd.DataFrame()
+
 
 
 # ------------------------------

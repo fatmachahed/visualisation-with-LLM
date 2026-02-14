@@ -1,15 +1,18 @@
 [project]
 name = "visualisation-with-llm"
-version = "0.1.0"
-description = ""
+version = "0.1.2" 
+description = "A library for data visualization with LLMs"
 authors = [
-    {name = "fatmachahed",email = "fachahed@gmail.com"}
+    {name = "fatmachahed", email = "fachahed@gmail.com"}
 ]
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.8"
 dependencies = [
-    "python-dotenv (>=1.2.1,<2.0.0)"
+      "python-dotenv (>=1.2.1,<2.0.0)"
 ]
+
+[dev-dependencies]
+python-dotenv = ">=1.2.1,<2.0.0"
 
 [tool.poetry]
 packages = [{include = "visualisation_with_llm", from = "src"}]
@@ -17,8 +20,3 @@ packages = [{include = "visualisation_with_llm", from = "src"}]
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
-
-[dependency-groups]
-dev = [
-    "python-dotenv (>=1.2.1,<2.0.0)"
-]
