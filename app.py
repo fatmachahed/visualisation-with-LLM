@@ -13,7 +13,7 @@ for module_name in ['src', 'src.visualisation_with_llm', 'src.visualisation_with
         del sys.modules[module_name]
 
 from src.visualisation_with_llm.llm_utils import init_llm, generate_visualization_proposals
-from visualisation_with_llm.viz_utils import plot, fig_to_base64
+from src.visualisation_with_llm.viz_utils import plot, fig_to_base64
 
 # =========================================================
 # CONFIG PAGE

@@ -2,7 +2,7 @@ from pathlib import Path
 import pandas as pd
 
 from src.visualisation_with_llm.data_loader import load_dataset
-from visualisation_with_llm.viz_utils import plot_bar, plot_scatter, plot_line
+from src.visualisation_with_llm.viz_utils import plot_bar, plot_scatter, plot_line
 
 if __name__ == "__main__":
 

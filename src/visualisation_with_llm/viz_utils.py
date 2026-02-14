@@ -489,7 +489,7 @@ def plot(df, spec, palette='deep', color='#4F8BF9'):
         return fig
     
     except Exception as e:
-        print(f"❌ Erreur génération graphique: {e}")
+        print(f" Erreur génération graphique: {e}")
         import traceback
         traceback.print_exc()
         return empty_plot(f"Erreur: {str(e)}")
