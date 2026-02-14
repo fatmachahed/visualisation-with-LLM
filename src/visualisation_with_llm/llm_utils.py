@@ -1,184 +1,171 @@
-import os
-import json
-from dotenv import load_dotenv
-from typing import List, Dict, Any
+import streamlit as st
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
 
-load_dotenv()
+# =========================================================
+# CONFIG PAGE
+# =========================================================
+st.set_page_config(
+    page_title="DataViz AI",
+    layout="wide",
+)
 
-# ==========================================================
-# CONFIGURATION DES TYPES ET PALETTES
-# ==========================================================
-ALLOWED_TYPES = {
-    "bar", "scatter", "line", "boxplot", "histogram", "heatmap",
-    "count", "pairplot", "violin", "stacked_bar"
+# =========================================================
+# CUSTOM CSS (design clair + cartes)
+# =========================================================
+st.markdown("""
+<style>
+.main {
+    background-color: #F7F9FC;
 }
-ALLOWED_PALETTES = {"deep", "muted", "colorblind"}
 
-# ==========================================================
-# INITIALISATION DU LLM
-# ==========================================================
-def init_llm():
-    from langchain_google_genai import ChatGoogleGenerativeAI
+.block-container {
+    padding-top: 2rem;
+}
 
-    api_key = os.getenv("GOOGLE_API_KEY")
-    if not api_key:
-        raise ValueError("GOOGLE_API_KEY manquant dans .env")
+div[data-testid="stMetric"] {
+    background-color: white;
+    padding: 15px;
+    border-radius: 12px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+}
 
-    return ChatGoogleGenerativeAI(
-        model="gemini-2.0-flash",
-        api_key=api_key,
-        temperature=0.2,
-        max_tokens=1500
+h1, h2, h3 {
+    color: #1F2937;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# =========================================================
+# SIDEBAR
+# =========================================================
+st.sidebar.title("🎨 Personnalisation")
+
+color_mode = st.sidebar.radio("Mode de couleur", ["Palette Seaborn", "Couleur Unique"])
+palette = None
+custom_color = "#4F8BF9"
+
+if color_mode == "Palette Seaborn":
+    palette = st.sidebar.selectbox(
+        "Palette Seaborn",
+        ["deep", "muted", "bright", "pastel", "dark", "colorblind"]
     )
+else:
+    custom_color = st.sidebar.color_picker("Couleur principale", "#4F8BF9")
 
-# ==========================================================
-# PROMPT ENGINEERING
-# ==========================================================
-def build_prompt(problem_statement: str, dataset_summary: str) -> str:
-    return f"""
-Tu es un expert académique en Data Visualization.
+show_grid = st.sidebar.checkbox("Afficher la grille", True)
 
-OBJECTIF :
-Répondre à une problématique métier en choisissant des visualisations pertinentes.
+st.sidebar.markdown("---")
+st.sidebar.subheader("📈 Infos dataset")
 
-PROBLEMATIQUE :
-{problem_statement}
+# =========================================================
+# HEADER
+# =========================================================
+st.title("📊 DataViz AI Dashboard")
 
-DATASET :
-{dataset_summary}
+problem = st.text_area(
+    "Problématique",
+    placeholder="Ex: analyser les relations entre variables..."
+)
 
-ANALYSE DU DATASET :
-1. Identifie d'abord les colonnes numériques et catégorielles
-2. Vérifie si la heatmap est appropriée (au moins 2 colonnes numériques)
-3. Si moins de 2 colonnes numériques, NE PROPOSE PAS de heatmap
+uploaded_file = st.file_uploader("Uploader un fichier CSV", type=["csv"])
 
-INSTRUCTIONS :
-1️⃣ Analyse brièvement la problématique.
-2️⃣ Identifie les types de variables pertinentes.
-3️⃣ Choisis EXACTEMENT 3 visualisations différentes.
-4️⃣ Justifie chaque choix selon :
-   - Pertinence analytique
-   - Bonnes pratiques
-   - Type de données
-5️⃣ Retourne UNIQUEMENT un JSON STRICT.
+# =========================================================
+# HELPER FUNCTION
+# =========================================================
+def plot_graph(df, spec):
+    """Génère un graphique avec bonnes pratiques selon le type."""
+    plot_type = spec["type"]
+    x = spec["x"]
+    y = spec["y"]
+    hue = spec["hue"]
+    bins = spec.get("bins", 20)
+    orientation = spec.get("orientation", "v")
 
-FORMAT STRICT :
-[
-  {{
-    "type": "bar | scatter | line | boxplot | histogram | heatmap | count | pairplot | violin | stacked_bar",
-    "x": "nom exact d'une colonne ou null",
-    "y": "nom exact d'une colonne ou null",
-    "hue": "nom exact d'une colonne ou null",
-    "bins": 20,
-    "orientation": "v | h",
-    "title": "titre clair",
-    "justification": "explication concise",
-    "palette": "deep | muted | colorblind"
-  }}
-]
-
-RÈGLES PAR TYPE DE GRAPHIQUE :
-- HEATMAP : AU MOINS 2 colonnes numériques, x=null, y=null, hue=null
-- HISTOGRAM : x = colonne numérique, y = null
-- BOXPLOT : x = colonne catégorielle, y = colonne numérique
-- BAR : x = colonne catégorielle, y = colonne numérique
-- SCATTER : x et y = colonnes numériques
-- LINE : x et y = colonnes numériques
-- COUNT : x = colonne catégorielle, y=null
-- PAIRPLOT : toutes les colonnes numériques
-- VIOLIN : x=catégorielle, y=numérique
-- STACKED_BAR : x=catégorielle, y=numérique, hue=catégorielle
-
-IMPORTANT :
-- EXACTEMENT 3 objets
-- JSON valide
-- null doit être un vrai null JSON
-"""
-
-# ==========================================================
-# GENERATION DES VISUALISATIONS
-# ==========================================================
-def generate_visualization_specs(llm, problem_statement: str, dataset_summary: str) -> List[Dict[str, Any]]:
-    prompt = build_prompt(problem_statement, dataset_summary)
-    response = llm.invoke(prompt)
-    content = response.content.strip()
-
-    # Nettoyage markdown éventuel
-    if content.startswith("```"):
-        content = content.split("```")[1]
-
-    # Extraction JSON
-    start = content.find("[")
-    end = content.rfind("]")
-    if start == -1 or end == -1:
-        raise ValueError("Réponse LLM invalide : JSON non trouvé")
-    json_str = content[start:end+1]
-
-    try:
-        specs = json.loads(json_str)
-    except json.JSONDecodeError as e:
-        raise ValueError(f"JSON invalide retourné par le LLM : {e}")
-
-    if not isinstance(specs, list) or len(specs) != 3:
-        raise ValueError("Le LLM doit retourner EXACTEMENT 3 visualisations")
-
-    normalized = []
-    for spec in specs:
-        normalized.append(normalize_and_validate_spec(spec))
-
-    return normalized
-
-# ==========================================================
-# NORMALISATION + VALIDATION FORTE
-# ==========================================================
-def normalize_and_validate_spec(spec: Dict[str, Any], df_columns=None) -> Dict[str, Any]:
-    if not isinstance(spec, dict):
-        raise ValueError("Chaque visualisation doit être un objet JSON")
-
-    # --- TYPE ---
-    plot_type = str(spec.get("type", "")).lower().strip()
-    if plot_type not in ALLOWED_TYPES:
-        raise ValueError(f"Type de graphique non supporté : {plot_type}")
-    spec["type"] = plot_type
-
-    # --- X / Y / HUE ---
-    for key in ["x", "y", "hue"]:
-        value = spec.get(key)
-        if value in ["null", "", "None"] or value is None:
-            spec[key] = None
-        else:
-            spec[key] = str(value).strip()
-
-    # --- BINS / ORIENTATION ---
-    spec["bins"] = int(spec.get("bins", 20))
-    spec["orientation"] = str(spec.get("orientation", "v")).lower()
-    if spec["orientation"] not in ["v", "h"]:
-        spec["orientation"] = "v"
-
-    # --- HEATMAP ---
-    if plot_type == "heatmap":
-        spec["x"] = spec["y"] = spec["hue"] = None
-        if "heatmap" not in spec.get("justification", "").lower():
-            spec["justification"] = f"Heatmap de corrélation - {spec.get('justification','')}"
-
-    # --- TITLE ---
-    if not spec.get("title"):
-        if plot_type == "heatmap":
-            spec["title"] = "Matrice de Corrélation"
-        else:
-            spec["title"] = f"{plot_type.capitalize()} - {spec.get('x', '')} vs {spec.get('y', '')}"
+    fig, ax = plt.subplots(figsize=(10,6))
+    
+    # Définir kwargs couleurs/palette
+    kwargs = {}
+    if color_mode == "Palette Seaborn" and palette:
+        if plot_type in ["boxplot", "violin", "bar", "stacked_bar"]:
+            kwargs["palette"] = palette
     else:
-        spec["title"] = str(spec.get("title")).strip()
+        kwargs["color"] = custom_color
 
-    # --- JUSTIFICATION ---
-    spec["justification"] = str(spec.get("justification", "")).strip()
-    if not spec["justification"]:
-        spec["justification"] = f"Visualisation {plot_type} pour analyser la relation entre les variables"
+    # Scatter
+    if plot_type == "scatter":
+        sns.scatterplot(data=df, x=x, y=y, hue=hue, ax=ax, **kwargs)
+    # Line
+    elif plot_type == "line":
+        sns.lineplot(data=df, x=x, y=y, hue=hue, ax=ax, **kwargs)
+    # Boxplot
+    elif plot_type == "boxplot":
+        sns.boxplot(data=df, x=x, y=y, hue=hue, ax=ax, **kwargs)
+    # Violin
+    elif plot_type == "violin":
+        sns.violinplot(data=df, x=x, y=y, hue=hue, ax=ax, **kwargs)
+    # Bar
+    elif plot_type == "bar":
+        sns.barplot(data=df, x=x, y=y, hue=hue, ax=ax, **kwargs)
+    # Stacked bar
+    elif plot_type == "stacked_bar":
+        # empilement simulé via pivot
+        pivot = df.pivot_table(index=x, columns=hue, values=y, aggfunc="sum").fillna(0)
+        pivot.plot(kind="bar", stacked=True, ax=ax, color=sns.color_palette(palette) if palette else None)
+    # Histogram
+    elif plot_type == "histogram":
+        sns.histplot(df[x], bins=bins, kde=True, ax=ax, **kwargs)
+    # Heatmap
+    elif plot_type == "heatmap":
+        numeric_cols = df.select_dtypes(include="number").columns
+        corr = df[numeric_cols].corr()
+        sns.heatmap(corr, annot=True, cmap="coolwarm", ax=ax)
+    # Count plot
+    elif plot_type == "count":
+        sns.countplot(data=df, x=x, hue=hue, ax=ax, **kwargs)
+    # Pairplot
+    elif plot_type == "pairplot":
+        sns.pairplot(df.select_dtypes(include="number"), palette=palette if palette else None)
+        st.pyplot(plt.gcf())
+        return
 
-    # --- PALETTE ---
-    palette = str(spec.get("palette", "deep")).lower().strip()
-    if palette not in ALLOWED_PALETTES:
-        palette = "deep"
-    spec["palette"] = palette
+    # Bonnes pratiques : labels lisibles
+    plt.xticks(rotation=45, ha="center")
+    plt.title(spec.get("title", "Graphique"))
+    if show_grid:
+        ax.grid(True, alpha=0.3)
+    st.pyplot(fig)
 
-    return spec
+# =========================================================
+# MAIN
+# =========================================================
+if uploaded_file:
+    df = pd.read_csv(uploaded_file)
+    df = df.dropna(how="all").dropna(axis=1, how="all")
+
+    numeric_cols = df.select_dtypes(include="number").columns.tolist()
+    categorical_cols = df.select_dtypes(exclude="number").columns.tolist()
+
+    # Sidebar stats
+    st.sidebar.metric("Lignes", df.shape[0])
+    st.sidebar.metric("Colonnes", df.shape[1])
+
+    st.markdown("## 📊 Visualisations Automatiques")
+
+    # Générer 3 graphiques automatiquement
+    specs = [
+        {"type":"scatter","x":numeric_cols[0] if numeric_cols else None,
+         "y":numeric_cols[1] if len(numeric_cols)>1 else None,
+         "hue":None,"title":"Scatter Plot","bins":20,"orientation":"v","palette":"deep","justification":""},
+        {"type":"boxplot","x":categorical_cols[0] if categorical_cols else None,
+         "y":numeric_cols[0] if numeric_cols else None,
+         "hue":None,"title":"Boxplot","bins":20,"orientation":"v","palette":"deep","justification":""},
+        {"type":"heatmap","x":None,"y":None,"hue":None,"title":"Matrice de corrélation","bins":20,"orientation":"v","palette":"deep","justification":""}
+    ]
+
+    for spec in specs:
+        plot_graph(df, spec)
+
+else:
+    st.info("Veuillez importer un fichier CSV pour commencer.")
