@@ -1,171 +1,252 @@
-import streamlit as st
-import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt
+﻿import os
+from dotenv import load_dotenv
+import json
+import re
 
-# =========================================================
-# CONFIG PAGE
-# =========================================================
-st.set_page_config(
-    page_title="DataViz AI",
-    layout="wide",
-)
+load_dotenv()
 
-# =========================================================
-# CUSTOM CSS (design clair + cartes)
-# =========================================================
-st.markdown("""
-<style>
-.main {
-    background-color: #F7F9FC;
-}
 
-.block-container {
-    padding-top: 2rem;
-}
-
-div[data-testid="stMetric"] {
-    background-color: white;
-    padding: 15px;
-    border-radius: 12px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-}
-
-h1, h2, h3 {
-    color: #1F2937;
-}
-</style>
-""", unsafe_allow_html=True)
-
-# =========================================================
-# SIDEBAR
-# =========================================================
-st.sidebar.title("🎨 Personnalisation")
-
-color_mode = st.sidebar.radio("Mode de couleur", ["Palette Seaborn", "Couleur Unique"])
-palette = None
-custom_color = "#4F8BF9"
-
-if color_mode == "Palette Seaborn":
-    palette = st.sidebar.selectbox(
-        "Palette Seaborn",
-        ["deep", "muted", "bright", "pastel", "dark", "colorblind"]
+def init_llm():
+    from langchain_google_genai import ChatGoogleGenerativeAI
+    api_key = os.getenv("GOOGLE_API_KEY")
+    if not api_key:
+        raise ValueError("Clé API manquante")
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-2.0-flash",
+        api_key=api_key,
+        temperature=0.2,
+        max_output_tokens=2048
     )
-else:
-    custom_color = st.sidebar.color_picker("Couleur principale", "#4F8BF9")
+    return llm
 
-show_grid = st.sidebar.checkbox("Afficher la grille", True)
 
-st.sidebar.markdown("---")
-st.sidebar.subheader("📈 Infos dataset")
-
-# =========================================================
-# HEADER
-# =========================================================
-st.title("📊 DataViz AI Dashboard")
-
-problem = st.text_area(
-    "Problématique",
-    placeholder="Ex: analyser les relations entre variables..."
-)
-
-uploaded_file = st.file_uploader("Uploader un fichier CSV", type=["csv"])
-
-# =========================================================
-# HELPER FUNCTION
-# =========================================================
-def plot_graph(df, spec):
-    """Génère un graphique avec bonnes pratiques selon le type."""
-    plot_type = spec["type"]
-    x = spec["x"]
-    y = spec["y"]
-    hue = spec["hue"]
-    bins = spec.get("bins", 20)
-    orientation = spec.get("orientation", "v")
-
-    fig, ax = plt.subplots(figsize=(10,6))
+def generate_visualization_proposals(llm, problem_statement, dataset_summary, preferred_types=None, num_proposals=3, allow_duplicates=False):
+    num_proposals = max(3, num_proposals)
+    allowed_types = None
     
-    # Définir kwargs couleurs/palette
-    kwargs = {}
-    if color_mode == "Palette Seaborn" and palette:
-        if plot_type in ["boxplot", "violin", "bar", "stacked_bar"]:
-            kwargs["palette"] = palette
+    if preferred_types:
+        if isinstance(preferred_types, str):
+            allowed_types = [t.strip().lower() for t in preferred_types.split(",")]
+        else:
+            allowed_types = [t.strip().lower() for t in preferred_types]
+        
+        if len(allowed_types) < num_proposals:
+            allow_duplicates = True
+        
+        types_constraint = f"""
+CONTRAINTE : Tu DOIS UNIQUEMENT utiliser ces types : {', '.join(allowed_types).upper()}
+{"Tu PEUX répéter le même type avec des colonnes différentes" if allow_duplicates else ""}
+"""
     else:
-        kwargs["color"] = custom_color
+        types_constraint = ""
+        allowed_types = ["scatter", "bar", "line", "histogram", "boxplot", "heatmap", "count"]
+    
+    columns_info = extract_columns_from_summary(dataset_summary)
+    
+    prompt = f"""
+Tu es un expert en data visualisation.
 
-    # Scatter
-    if plot_type == "scatter":
-        sns.scatterplot(data=df, x=x, y=y, hue=hue, ax=ax, **kwargs)
-    # Line
-    elif plot_type == "line":
-        sns.lineplot(data=df, x=x, y=y, hue=hue, ax=ax, **kwargs)
-    # Boxplot
-    elif plot_type == "boxplot":
-        sns.boxplot(data=df, x=x, y=y, hue=hue, ax=ax, **kwargs)
-    # Violin
-    elif plot_type == "violin":
-        sns.violinplot(data=df, x=x, y=y, hue=hue, ax=ax, **kwargs)
-    # Bar
-    elif plot_type == "bar":
-        sns.barplot(data=df, x=x, y=y, hue=hue, ax=ax, **kwargs)
-    # Stacked bar
-    elif plot_type == "stacked_bar":
-        # empilement simulé via pivot
-        pivot = df.pivot_table(index=x, columns=hue, values=y, aggfunc="sum").fillna(0)
-        pivot.plot(kind="bar", stacked=True, ax=ax, color=sns.color_palette(palette) if palette else None)
-    # Histogram
-    elif plot_type == "histogram":
-        sns.histplot(df[x], bins=bins, kde=True, ax=ax, **kwargs)
-    # Heatmap
-    elif plot_type == "heatmap":
-        numeric_cols = df.select_dtypes(include="number").columns
-        corr = df[numeric_cols].corr()
-        sns.heatmap(corr, annot=True, cmap="coolwarm", ax=ax)
-    # Count plot
-    elif plot_type == "count":
-        sns.countplot(data=df, x=x, hue=hue, ax=ax, **kwargs)
-    # Pairplot
-    elif plot_type == "pairplot":
-        sns.pairplot(df.select_dtypes(include="number"), palette=palette if palette else None)
-        st.pyplot(plt.gcf())
-        return
+PROBLÉMATIQUE : {problem_statement}
+DATASET : {dataset_summary}
+COLONNES : {columns_info}
+{types_constraint}
 
-    # Bonnes pratiques : labels lisibles
-    plt.xticks(rotation=45, ha="center")
-    plt.title(spec.get("title", "Graphique"))
-    if show_grid:
-        ax.grid(True, alpha=0.3)
-    st.pyplot(fig)
+TÂCHE : Propose EXACTEMENT {num_proposals} visualisations.
 
-# =========================================================
-# MAIN
-# =========================================================
-if uploaded_file:
-    df = pd.read_csv(uploaded_file)
-    df = df.dropna(how="all").dropna(axis=1, how="all")
+FORMAT ({num_proposals} lignes) :
+type: <type>, x: <col>, y: <col>, title: <titre>, justification: <texte>
 
-    numeric_cols = df.select_dtypes(include="number").columns.tolist()
-    categorical_cols = df.select_dtypes(exclude="number").columns.tolist()
+TYPES : scatter, bar, line, histogram, boxplot, heatmap, count
+"""
+    
+    try:
+        response = llm.invoke(prompt)
+        text = response.content.strip()
+        specs = parse_all_specs(text, dataset_summary, allow_duplicates)
+        
+        if allowed_types:
+            specs = [s for s in specs if s.get("type") in allowed_types]
+        
+        if len(specs) < num_proposals:
+            specs = complete_to_n_specs(specs, dataset_summary, allowed_types, num_proposals, allow_duplicates)
+        
+        return specs[:num_proposals]
+    
+    except Exception as e:
+        print(f"Erreur LLM: {e}")
+        return generate_smart_fallback_specs(dataset_summary, allowed_types, num_proposals, allow_duplicates)
 
-    # Sidebar stats
-    st.sidebar.metric("Lignes", df.shape[0])
-    st.sidebar.metric("Colonnes", df.shape[1])
 
-    st.markdown("## 📊 Visualisations Automatiques")
+def extract_columns_from_summary(summary):
+    lines = summary.split('\n')
+    columns = []
+    for line in lines:
+        if any(dtype in line.lower() for dtype in ['int', 'float', 'object', 'string']):
+            parts = line.split()
+            if parts:
+                columns.append(parts[0].strip())
+    return "Colonnes : " + ", ".join(columns) if columns else ""
 
-    # Générer 3 graphiques automatiquement
-    specs = [
-        {"type":"scatter","x":numeric_cols[0] if numeric_cols else None,
-         "y":numeric_cols[1] if len(numeric_cols)>1 else None,
-         "hue":None,"title":"Scatter Plot","bins":20,"orientation":"v","palette":"deep","justification":""},
-        {"type":"boxplot","x":categorical_cols[0] if categorical_cols else None,
-         "y":numeric_cols[0] if numeric_cols else None,
-         "hue":None,"title":"Boxplot","bins":20,"orientation":"v","palette":"deep","justification":""},
-        {"type":"heatmap","x":None,"y":None,"hue":None,"title":"Matrice de corrélation","bins":20,"orientation":"v","palette":"deep","justification":""}
-    ]
 
-    for spec in specs:
-        plot_graph(df, spec)
+def parse_all_specs(text, dataset_summary, allow_duplicates):
+    specs = []
+    seen_combos = set()
+    lines = [line.strip() for line in text.split("\n") if line.strip()]
+    
+    for line in lines:
+        if "type:" not in line.lower():
+            continue
+        spec = parse_single_spec(line)
+        if spec and spec.get("type"):
+            signature = f"{spec['type']}_{spec.get('x', '')}_{spec.get('y', '')}"
+            if signature not in seen_combos or allow_duplicates:
+                specs.append(spec)
+                seen_combos.add(signature)
+    return specs
 
-else:
-    st.info("Veuillez importer un fichier CSV pour commencer.")
+
+def parse_single_spec(line):
+    spec = {"type": None, "x": None, "y": None, "title": "Visualisation", "justification": ""}
+    parts = re.split(r',\s*(?=\w+:)', line)
+    for part in parts:
+        if ":" not in part:
+            continue
+        key, value = part.split(":", 1)
+        key = key.strip().lower()
+        value = value.strip()
+        if value.lower() in ["null", "none", "", "n/a"]:
+            value = None
+        if key in spec:
+            spec[key] = value
+    return spec
+
+
+def complete_to_n_specs(specs, dataset_summary, allowed_types, num_proposals, allow_duplicates):
+    existing_combos = {f"{s['type']}_{s.get('x', '')}_{s.get('y', '')}" for s in specs}
+    fallback_specs = generate_smart_fallback_specs(dataset_summary, allowed_types, num_proposals, allow_duplicates)
+    for fb_spec in fallback_specs:
+        if len(specs) >= num_proposals:
+            break
+        signature = f"{fb_spec['type']}_{fb_spec.get('x', '')}_{fb_spec.get('y', '')}"
+        if signature not in existing_combos or allow_duplicates:
+            specs.append(fb_spec)
+            existing_combos.add(signature)
+    return specs
+
+
+def generate_smart_fallback_specs(dataset_summary, allowed_types=None, num_proposals=3, allow_duplicates=False):
+    numeric_cols = []
+    categorical_cols = []
+    
+    for line in dataset_summary.split("\n"):
+        line_lower = line.lower()
+        if not line.strip() or "column" in line_lower:
+            continue
+        parts = line.split()
+        if len(parts) < 2:
+            continue
+        col_name = parts[0].strip()
+        if col_name in ["-", "Column", "Type"]:
+            continue
+        if any(dtype in line_lower for dtype in ['int64', 'float64']):
+            numeric_cols.append(col_name)
+        elif any(dtype in line_lower for dtype in ['object', 'string']):
+            categorical_cols.append(col_name)
+    
+    if allowed_types:
+        types_pool = allowed_types
+    else:
+        types_pool = ["scatter", "bar", "histogram", "boxplot", "heatmap"]
+    
+    specs = []
+    used_combos = set()
+    attempts = 0
+    
+    while len(specs) < num_proposals and attempts < num_proposals * 10:
+        attempts += 1
+        for t in types_pool:
+            if len(specs) >= num_proposals:
+                break
+            spec = None
+            
+            if t == "scatter" and len(numeric_cols) >= 2:
+                for i in range(len(numeric_cols)):
+                    for j in range(i+1, len(numeric_cols)):
+                        combo = f"scatter_{numeric_cols[i]}_{numeric_cols[j]}"
+                        if combo not in used_combos or allow_duplicates:
+                            spec = {
+                                "type": "scatter",
+                                "x": numeric_cols[i],
+                                "y": numeric_cols[j],
+                                "title": f"Relation {numeric_cols[i]} vs {numeric_cols[j]}",
+                                "justification": f"Corrélation entre {numeric_cols[i]} et {numeric_cols[j]}"
+                            }
+                            used_combos.add(combo)
+                            break
+                    if spec:
+                        break
+            
+            elif t == "bar" and categorical_cols and numeric_cols:
+                for cat in categorical_cols:
+                    for num in numeric_cols:
+                        combo = f"bar_{cat}_{num}"
+                        if combo not in used_combos or allow_duplicates:
+                            spec = {
+                                "type": "bar",
+                                "x": cat,
+                                "y": num,
+                                "title": f"{num} par {cat}",
+                                "justification": f"Compare {num} selon {cat}"
+                            }
+                            used_combos.add(combo)
+                            break
+                    if spec:
+                        break
+            
+            elif t == "histogram" and numeric_cols:
+                for num in numeric_cols:
+                    combo = f"histogram_{num}_null"
+                    if combo not in used_combos or allow_duplicates:
+                        spec = {
+                            "type": "histogram",
+                            "x": num,
+                            "y": None,
+                            "title": f"Distribution de {num}",
+                            "justification": f"Répartition de {num}"
+                        }
+                        used_combos.add(combo)
+                        break
+            
+            elif t == "boxplot" and categorical_cols and numeric_cols:
+                for cat in categorical_cols:
+                    for num in numeric_cols:
+                        combo = f"boxplot_{cat}_{num}"
+                        if combo not in used_combos or allow_duplicates:
+                            spec = {
+                                "type": "boxplot",
+                                "x": cat,
+                                "y": num,
+                                "title": f"Distribution {num} par {cat}",
+                                "justification": f"Compare distributions"
+                            }
+                            used_combos.add(combo)
+                            break
+                    if spec:
+                        break
+            
+            elif t == "heatmap" and len(numeric_cols) >= 3:
+                combo = "heatmap_null_null"
+                if combo not in used_combos or allow_duplicates:
+                    spec = {
+                        "type": "heatmap",
+                        "x": None,
+                        "y": None,
+                        "title": "Matrice de corrélation",
+                        "justification": "Corrélations entre variables"
+                    }
+                    used_combos.add(combo)
+            
+            if spec:
+                specs.append(spec)
+    
+    return specs[:num_proposals]

@@ -4,7 +4,7 @@ import pandas as pd
 import traceback
 
 # === Import LLM Utils ===
-from src.visualisation_with_llm.llm_utils import init_llm, generate_visualization_specs
+from visualisation_with_llm.llm_utils_old import init_llm, generate_visualization_specs
 
 app = Flask(__name__, template_folder="templates")
 CORS(app)
