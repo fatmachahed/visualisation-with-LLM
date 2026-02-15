@@ -178,7 +178,6 @@ def plot(df, spec, palette='deep', color='#4F8BF9'):
         return empty_plot("Le dataset est vide après nettoyage")
     
     # ===== EXTRACTION DES PARAMÈTRES =====
-    # Convertir spec en dict si c'est autre chose
     if not isinstance(spec, dict):
         return empty_plot("Spec invalide : doit être un dictionnaire")
     
@@ -197,7 +196,6 @@ def plot(df, spec, palette='deep', color='#4F8BF9'):
     if isinstance(hue, str) and hue.lower() in ["none", "null", ""]:
         hue = None
     
-    # Vérifier que hue existe
     if hue and hue not in df.columns:
         print(f"⚠️ Colonne hue '{hue}' introuvable, ignorée")
         hue = None
