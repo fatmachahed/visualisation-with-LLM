@@ -12,3 +12,6 @@ dist/
 # Variables d'environnement
 .env
 *.env
+
+
+.vscode/

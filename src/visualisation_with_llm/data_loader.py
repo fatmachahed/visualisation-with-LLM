@@ -38,7 +38,7 @@ def load_dataset(file) -> pd.DataFrame:
 # Test rapide du loader
 # ------------------------------
 if __name__ == "__main__":
-    base_path = Path(__file__).parent.parent.parent  # src/visualisation_with_llm/ -> remonter à la racine
+    base_path = Path(__file__).parent.parent.parent  
     test_file = base_path / "data" / "spotify-tracks-dataset" / "dataset.csv"
 
     # Charger le dataset
