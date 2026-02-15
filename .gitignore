@@ -5,6 +5,10 @@
 __pycache__/
 *.pyc
 
-# Environnement virtuel
-.venv
-.env 
+# Build / distribution
+dist/
+*.egg-info/
+
+# Variables d'environnement
+.env
+*.env
